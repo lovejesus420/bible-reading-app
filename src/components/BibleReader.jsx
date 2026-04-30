@@ -1,11 +1,41 @@
 import { useState, useEffect, useRef } from 'react';
 import { parsePassage } from '../utils/passageParser';
 
-function cleanVerse(text) {
-  return text
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function parseVersesFromHTML(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const verses = [];
+  const seen = new Set();
+  doc.querySelectorAll('p').forEach(p => {
+    const text = p.textContent.replace(/\[\d+[)]\]/g, '').replace(/\s+/g, ' ').trim();
+    const m = text.match(/^(\d{1,3})\s+(.+)$/);
+    if (!m) return;
+    const num = parseInt(m[1]);
+    const verseText = m[2].trim();
+    if (num >= 1 && verseText.length > 1 && !seen.has(num)) {
+      seen.add(num);
+      verses.push({ verse: num, text: verseText });
+    }
+  });
+  return verses.sort((a, b) => a.verse - b.verse);
+}
+
+async function fetchChapter(bookNum, chapter) {
+  const url = `/api/bskorea/bible/korbibReadpage.php?VER=GAE&Book=${bookNum}&Jang=${chapter}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+  const ct = r.headers.get('content-type') || '';
+  let html;
+  if (/euc-kr|ks_c_5601/i.test(ct)) {
+    const buf = await r.arrayBuffer();
+    html = new TextDecoder('euc-kr').decode(buf);
+  } else {
+    html = await r.text();
+  }
+
+  const verses = parseVersesFromHTML(html);
+  if (verses.length === 0) throw new Error('verses empty');
+  return verses;
 }
 
 export default function BibleReader({ passage }) {
@@ -37,15 +67,10 @@ export default function BibleReader({ passage }) {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/bible?book=${bookNum}&chapter=${chapter}`)
-      .then(r => {
-        if (!r.ok) throw new Error('fetch failed');
-        return r.json();
-      })
+    fetchChapter(bookNum, chapter)
       .then(data => {
-        const cleaned = data.map(v => ({ verse: v.verse, text: cleanVerse(v.text) }));
-        cache.current[key] = cleaned;
-        setVerses(cleaned);
+        cache.current[key] = data;
+        setVerses(data);
         setLoading(false);
       })
       .catch(() => {

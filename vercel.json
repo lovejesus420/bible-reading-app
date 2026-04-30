@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/bskorea/:path*",
+      "destination": "https://www.bskorea.or.kr/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
