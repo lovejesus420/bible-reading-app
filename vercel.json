@@ -1,9 +1,10 @@
 {
+  "functions": {
+    "api/bible.js": {
+      "regions": ["icn1"]
+    }
+  },
   "rewrites": [
-    {
-      "source": "/api/bskorea/:path*",
-      "destination": "https://www.bskorea.or.kr/:path*"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

@@ -9,79 +9,112 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `https://www.bskorea.or.kr/bible/korbibReadpage.php?VER=GAE&Book=${bookNum}&Jang=${chapterNum}`;
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'ko-KR,ko;q=0.9',
-        'Referer': 'https://www.bskorea.or.kr/',
-      },
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const buffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-
-    // Detect charset from Content-Type header, then HTML meta tag
-    let encoding = 'utf-8';
-    const ct = response.headers.get('content-type') || '';
-    const ctMatch = ct.match(/charset=([^\s;]+)/i);
-    if (ctMatch) {
-      encoding = ctMatch[1].toLowerCase();
-    } else {
-      // Read first 2KB with lenient mode to find meta charset
-      const preview = new TextDecoder('utf-8', { fatal: false }).decode(bytes.slice(0, 2048));
-      const metaMatch = preview.match(/charset[=:]["']?\s*([a-zA-Z0-9_-]+)/i);
-      if (metaMatch) encoding = metaMatch[1].toLowerCase();
+    // Primary source: HolyBible.or.kr (as requested by user)
+    const verses = await fetchFromHolyBible(bookNum, chapterNum);
+    
+    if (verses && verses.length > 0) {
+      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate');
+      return res.status(200).json(verses);
     }
 
-    const html = new TextDecoder(encoding, { fatal: false }).decode(bytes);
-    const verses = parseVerses(html);
-
-    if (verses.length === 0) {
-      return res.status(404).json({ error: '본문을 찾을 수 없습니다.' });
+    // Fallback source: BSKorea.or.kr
+    const fallbackVerses = await fetchFromBSKorea(bookNum, chapterNum);
+    if (fallbackVerses && fallbackVerses.length > 0) {
+      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate');
+      return res.status(200).json(fallbackVerses);
     }
 
-    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate');
-    return res.status(200).json(verses);
+    return res.status(404).json({ error: '본문을 찾을 수 없습니다.' });
   } catch (err) {
     console.error('Bible fetch error:', err.message);
     return res.status(500).json({ error: '본문을 불러오지 못했습니다.' });
   }
 }
 
-function parseVerses(html) {
-  html = html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '');
+async function fetchFromHolyBible(bookNum, chapterNum) {
+  try {
+    const url = `http://www.holybible.or.kr/B_GAE/cgi/bibleftxt.php?VR=GAE&VL=${bookNum}&CN=${chapterNum}&CV=99`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
 
-  const verses = [];
-  const seen = new Set();
-  const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
-  let m;
+    if (!response.ok) return null;
 
-  while ((m = pRegex.exec(html)) !== null) {
-    let content = m[1];
-    content = content.replace(/<[^>]+>/g, '');
-    content = decodeEntities(content);
-    content = content.replace(/\s+/g, ' ').trim();
+    const buffer = await response.arrayBuffer();
+    const decoder = new TextDecoder('euc-kr');
+    const html = decoder.decode(buffer);
 
-    const vm = content.match(/^(\d{1,3})\s+(.+)$/);
-    if (!vm) continue;
-
-    const num = parseInt(vm[1]);
-    const text = vm[2].trim();
-    if (num >= 1 && text.length > 1 && !seen.has(num)) {
-      seen.add(num);
-      verses.push({ verse: num, text });
+    const verses = [];
+    // Site uses <ol> without </ol> in some cases, splitting by <ol
+    const olParts = html.split(/<ol\s+/i);
+    
+    for (let i = 1; i < olParts.length; i++) {
+      const part = olParts[i];
+      const startMatch = part.match(/start=(\d+)/i);
+      let verseNum = startMatch ? parseInt(startMatch[1]) : (verses.length + 1);
+      
+      const lis = part.split(/<li[^>]*>/i);
+      for (let j = 1; j < lis.length; j++) {
+        const li = lis[j];
+        // Clean up text: remove tags, stop at next major block if any
+        let text = li.split(/<(?:ol|table|tr|div)/i)[0]; 
+        text = text.replace(/<[^>]+>/g, '').trim();
+        text = decodeEntities(text);
+        
+        if (text.length > 0) {
+          if (!verses.find(v => v.verse === verseNum)) {
+            verses.push({ verse: verseNum, text });
+          }
+          verseNum++;
+        }
+      }
     }
+    
+    verses.sort((a, b) => a.verse - b.verse);
+    return verses;
+  } catch (e) {
+    console.error('HolyBible fetch error:', e);
+    return null;
   }
+}
 
-  verses.sort((a, b) => a.verse - b.verse);
-  return verses;
+async function fetchFromBSKorea(bookNum, chapterNum) {
+  try {
+    const url = `https://www.bskorea.or.kr/bible/korbibReadpage.php?VER=GAE&Book=${bookNum}&Jang=${chapterNum}`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const buffer = await response.arrayBuffer();
+    const decoder = new TextDecoder('utf-8');
+    let html = decoder.decode(buffer);
+    if (html.includes('charset=euc-kr') || html.includes('charset=EUC-KR')) {
+      html = new TextDecoder('euc-kr').decode(buffer);
+    }
+
+    const verses = [];
+    const regex = /<span class="number">(\d+)(&nbsp;|\s)*<\/span>([\s\S]*?)(?=<span class="number">|<br \/>|<\/div>|<\/span><\/span>|$)/gi;
+    let m;
+    while ((m = regex.exec(html)) !== null) {
+      const num = parseInt(m[1]);
+      let text = m[3].replace(/<[^>]+>/g, '').trim();
+      text = decodeEntities(text);
+      if (num && text && !verses.find(v => v.verse === num)) {
+        verses.push({ verse: num, text });
+      }
+    }
+    verses.sort((a, b) => a.verse - b.verse);
+    return verses;
+  } catch (e) {
+    console.error('BSKorea fetch error:', e);
+    return null;
+  }
 }
 
 function decodeEntities(str) {
@@ -93,5 +126,7 @@ function decodeEntities(str) {
     .replace(/&quot;/gi, '"')
     .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(+c))
     .replace(/\[\d+[)]\]/g, '')
-    .replace(/\(\s*\d+\s*\)/g, '');
+    .replace(/\(\s*\d+\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
