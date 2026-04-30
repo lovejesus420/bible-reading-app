@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/bolls/:path*",
+      "destination": "https://bolls.life/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
