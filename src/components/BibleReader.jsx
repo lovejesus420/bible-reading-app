@@ -37,7 +37,7 @@ export default function BibleReader({ passage }) {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/bolls/get-text/KRV/${bookNum}/${chapter}/`)
+    fetch(`/api/bible?book=${bookNum}&chapter=${chapter}`)
       .then(r => {
         if (!r.ok) throw new Error('fetch failed');
         return r.json();
