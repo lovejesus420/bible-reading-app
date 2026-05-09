@@ -1,4 +1,4 @@
-export const PLAN_START = new Date(2026, 3, 27); // 2026년 4월 27일
+export const PLAN_START = new Date(2026, 4, 8); // 2026년 5월 8일
 
 export const readingPlan = [
   "창 1-6",                          // 1
