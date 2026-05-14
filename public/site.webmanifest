@@ -1,0 +1,26 @@
+{
+  "name": "김앤장 성경통독 200일",
+  "short_name": "성경통독",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1E3D70",
+  "theme_color": "#1E3D70",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -112,3 +112,84 @@ export function getUserColor(username) {
   }
   return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
 }
+
+// ── Init: backfill all past plan days as read for each user (once per user) ──
+const INIT_KEY = 'bible_user_inits_v1';
+
+export function initAllPastDays(planStart) {
+  const users = getUsers();
+  const usernames = Object.keys(users);
+  if (!usernames.length) return;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = new Date(planStart); start.setHours(0, 0, 0, 0);
+  if (today < start) return;
+  const inited = JSON.parse(localStorage.getItem(INIT_KEY) || '[]');
+  const toInit = usernames.filter(u => !inited.includes(u));
+  if (!toInit.length) return;
+  const all = JSON.parse(localStorage.getItem(RECORDS_KEY) || '{}');
+  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    const dateStr = formatDate(new Date(d));
+    toInit.forEach(u => {
+      if (!all[u]) all[u] = {};
+      all[u][dateStr] = true;
+    });
+  }
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  localStorage.setItem(INIT_KEY, JSON.stringify([...inited, ...toInit]));
+}
+
+// ── Comments ──
+const COMMENTS_KEY = 'bible_comments';
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+export function getComments(dateStr) {
+  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
+  return all[dateStr] || [];
+}
+
+export function addComment(dateStr, author, text) {
+  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
+  if (!all[dateStr]) all[dateStr] = [];
+  all[dateStr].push({ id: uid(), author, text: text.trim(), timestamp: Date.now(), replies: [] });
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
+  return [...all[dateStr]];
+}
+
+export function addReply(dateStr, commentId, author, text) {
+  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
+  const c = (all[dateStr] || []).find(c => c.id === commentId);
+  if (!c) return getComments(dateStr);
+  c.replies.push({
+    id: uid(), author, text: text.trim(), timestamp: Date.now(),
+    edited: false, reactions: { '❤️': [], '👍': [], '😢': [] },
+  });
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
+  return [...all[dateStr]];
+}
+
+export function editReply(dateStr, commentId, replyId, newText) {
+  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
+  const c = (all[dateStr] || []).find(c => c.id === commentId);
+  if (!c) return getComments(dateStr);
+  const r = c.replies.find(r => r.id === replyId);
+  if (r) { r.text = newText.trim(); r.edited = true; }
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
+  return [...all[dateStr]];
+}
+
+export function toggleReaction(dateStr, commentId, replyId, emoji, username) {
+  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
+  const c = (all[dateStr] || []).find(c => c.id === commentId);
+  if (!c) return getComments(dateStr);
+  const r = c.replies.find(r => r.id === replyId);
+  if (!r) return getComments(dateStr);
+  if (!r.reactions[emoji]) r.reactions[emoji] = [];
+  const idx = r.reactions[emoji].indexOf(username);
+  if (idx >= 0) r.reactions[emoji].splice(idx, 1);
+  else r.reactions[emoji].push(username);
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
+  return [...all[dateStr]];
+}

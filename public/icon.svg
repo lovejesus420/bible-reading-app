@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- App icon background -->
+  <rect width="512" height="512" rx="115" fill="#1E3D70"/>
+
+  <!-- Book depth shadow -->
+  <rect x="106" y="98" width="282" height="338" rx="14" fill="#0D1F3C" opacity="0.5"/>
+
+  <!-- Book cover (front face) -->
+  <rect x="98" y="90" width="282" height="336" rx="14" fill="#2455A4"/>
+
+  <!-- Book spine (left) -->
+  <rect x="98" y="90" width="46" height="336" rx="14" fill="#1A3D7C"/>
+  <rect x="140" y="90" width="3" height="336" fill="#4070C8" opacity="0.6"/>
+
+  <!-- Page edges (right side stacked) -->
+  <rect x="383" y="96" width="9" height="324" rx="4" fill="#D8CDB0"/>
+  <rect x="377" y="94" width="9" height="328" rx="4" fill="#E5DCBF"/>
+
+  <!-- Gold decorative border on cover -->
+  <rect x="157" y="116" width="198" height="264" rx="8" fill="none" stroke="#C8962A" stroke-width="3.5"/>
+
+  <!-- Corner ornaments -->
+  <circle cx="165" cy="124" r="5.5" fill="#C8962A"/>
+  <circle cx="347" cy="124" r="5.5" fill="#C8962A"/>
+  <circle cx="165" cy="372" r="5.5" fill="#C8962A"/>
+  <circle cx="347" cy="372" r="5.5" fill="#C8962A"/>
+
+  <!-- Gold cross — vertical bar -->
+  <rect x="243" y="152" width="24" height="96" rx="6" fill="#E8C040"/>
+  <!-- Gold cross — horizontal bar -->
+  <rect x="207" y="185" width="96" height="24" rx="6" fill="#E8C040"/>
+  <!-- Cross inner highlight -->
+  <rect x="249" y="152" width="8" height="96" rx="4" fill="white" opacity="0.18"/>
+  <rect x="207" y="191" width="96" height="8" rx="4" fill="white" opacity="0.18"/>
+
+  <!-- Text lines below cross -->
+  <rect x="177" y="295" width="158" height="8" rx="4" fill="#C8962A" opacity="0.85"/>
+  <rect x="197" y="313" width="118" height="6" rx="3" fill="#C8962A" opacity="0.55"/>
+
+  <!-- Red ribbon bookmark -->
+  <rect x="286" y="90" width="11" height="70" rx="3" fill="#C0392B"/>
+  <polygon points="286,160 297,160 291.5,178" fill="#C0392B"/>
+</svg>
