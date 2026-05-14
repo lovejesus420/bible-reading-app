@@ -1,0 +1,44 @@
+import { initializeApp, getApps } from 'firebase/app';
+import { getDatabase, ref, get, set } from 'firebase/database';
+
+const config = {
+  apiKey: import.meta.env.VITE_FB_API_KEY,
+  databaseURL: import.meta.env.VITE_FB_DB_URL,
+  projectId: import.meta.env.VITE_FB_PROJECT_ID,
+  appId: import.meta.env.VITE_FB_APP_ID,
+};
+
+let _db = null;
+
+function getDb() {
+  if (_db) return _db;
+  if (!config.databaseURL) return null;
+  const app = getApps().length ? getApps()[0] : initializeApp(config);
+  _db = getDatabase(app);
+  return _db;
+}
+
+export async function dbGet(path) {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const snap = await get(ref(db, path));
+    return snap.exists() ? snap.val() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function dbSet(path, value) {
+  const db = getDb();
+  if (!db) return;
+  try {
+    await set(ref(db, path), value);
+  } catch {
+    // silent fail — localStorage is still the source of truth
+  }
+}
+
+export function isFirebaseEnabled() {
+  return !!config.databaseURL;
+}

@@ -12,6 +12,7 @@ import {
   editReply,
   toggleReaction,
 } from '../utils/storage';
+import { dbGet } from '../utils/db';
 
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const REACTIONS = ['❤️', '👍', '😢'];
@@ -35,16 +36,31 @@ export default function SharingTab({ user }) {
   const [editingReply, setEditingReply] = useState(null);
   const [editText, setEditText] = useState('');
 
+  // Firebase shared data
+  const [fbUsers, setFbUsers] = useState(null);
+  const [fbRecords, setFbRecords] = useState(null);
+
   useEffect(() => {
-    setComments(getComments(selectedDate));
+    Promise.all([dbGet('users'), dbGet('records')]).then(([u, r]) => {
+      if (u) setFbUsers(u);
+      if (r) setFbRecords(r);
+    });
+  }, []);
+
+  useEffect(() => {
+    // Try Firebase first, fall back to localStorage
+    dbGet(`comments/${selectedDate}`).then(fbComments => {
+      setComments(fbComments && fbComments.length ? fbComments : getComments(selectedDate));
+    });
     setReplyingTo(null);
     setEditingReply(null);
     setReplyText('');
     setEditText('');
   }, [selectedDate]);
 
-  const allUsers = Object.keys(getUsers());
-  const allRecords = getAllRecords();
+  // Use Firebase data if loaded, otherwise fall back to local
+  const allUsers = fbUsers ? Object.keys(fbUsers) : Object.keys(getUsers());
+  const allRecords = fbRecords || getAllRecords();
 
   const goPrev = () => {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }

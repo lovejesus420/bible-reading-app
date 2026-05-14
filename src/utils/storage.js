@@ -1,3 +1,5 @@
+import { dbSet, dbGet } from './db';
+
 const USERS_KEY = 'bible_users';
 const RECORDS_KEY = 'bible_records';
 const CURRENT_USER_KEY = 'bible_current_user';
@@ -14,6 +16,7 @@ export function registerUser(name, password) {
   const users = getUsers();
   users[name] = { password };
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  dbSet(`users/${name}`, true);
 }
 
 export function validateLogin(name, password) {
@@ -52,6 +55,7 @@ export function setReading(username, dateStr, value) {
   if (!all[username]) all[username] = {};
   all[username][dateStr] = value;
   localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  dbSet(`records/${username}/${dateStr}`, value);
 }
 
 export function getMonthlyCount(username, year, month) {
@@ -113,29 +117,29 @@ export function getUserColor(username) {
   return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
 }
 
-// ── Init: backfill all past plan days as read for each user (once per user) ──
-const INIT_KEY = 'bible_user_inits_v1';
+// ── Init: one-time backfill of all past plan days as read for all current users ──
+const INIT_FLAG = 'bible_backfill_done';
 
 export function initAllPastDays(planStart) {
+  if (localStorage.getItem(INIT_FLAG)) return;
   const users = getUsers();
   const usernames = Object.keys(users);
   if (!usernames.length) return;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const start = new Date(planStart); start.setHours(0, 0, 0, 0);
   if (today < start) return;
-  const inited = JSON.parse(localStorage.getItem(INIT_KEY) || '[]');
-  const toInit = usernames.filter(u => !inited.includes(u));
-  if (!toInit.length) return;
   const all = JSON.parse(localStorage.getItem(RECORDS_KEY) || '{}');
   for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
     const dateStr = formatDate(new Date(d));
-    toInit.forEach(u => {
+    usernames.forEach(u => {
       if (!all[u]) all[u] = {};
       all[u][dateStr] = true;
     });
   }
   localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
-  localStorage.setItem(INIT_KEY, JSON.stringify([...inited, ...toInit]));
+  localStorage.setItem(INIT_FLAG, '1');
+  toInit.forEach(u => dbSet(`users/${u}`, true));
+  toInit.forEach(u => dbSet(`records/${u}`, all[u]));
 }
 
 // ── Comments ──
@@ -150,12 +154,17 @@ export function getComments(dateStr) {
   return all[dateStr] || [];
 }
 
+function saveComments(all, dateStr) {
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
+  dbSet(`comments/${dateStr}`, all[dateStr] || []);
+  return [...(all[dateStr] || [])];
+}
+
 export function addComment(dateStr, author, text) {
   const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
   if (!all[dateStr]) all[dateStr] = [];
   all[dateStr].push({ id: uid(), author, text: text.trim(), timestamp: Date.now(), replies: [] });
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
-  return [...all[dateStr]];
+  return saveComments(all, dateStr);
 }
 
 export function addReply(dateStr, commentId, author, text) {
@@ -166,8 +175,7 @@ export function addReply(dateStr, commentId, author, text) {
     id: uid(), author, text: text.trim(), timestamp: Date.now(),
     edited: false, reactions: { '❤️': [], '👍': [], '😢': [] },
   });
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
-  return [...all[dateStr]];
+  return saveComments(all, dateStr);
 }
 
 export function editReply(dateStr, commentId, replyId, newText) {
@@ -176,8 +184,7 @@ export function editReply(dateStr, commentId, replyId, newText) {
   if (!c) return getComments(dateStr);
   const r = c.replies.find(r => r.id === replyId);
   if (r) { r.text = newText.trim(); r.edited = true; }
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
-  return [...all[dateStr]];
+  return saveComments(all, dateStr);
 }
 
 export function toggleReaction(dateStr, commentId, replyId, emoji, username) {
@@ -190,6 +197,5 @@ export function toggleReaction(dateStr, commentId, replyId, emoji, username) {
   const idx = r.reactions[emoji].indexOf(username);
   if (idx >= 0) r.reactions[emoji].splice(idx, 1);
   else r.reactions[emoji].push(username);
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
-  return [...all[dateStr]];
+  return saveComments(all, dateStr);
 }
