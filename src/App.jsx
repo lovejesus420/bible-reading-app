@@ -3,8 +3,8 @@ import Auth from './components/Auth';
 import BibleTab from './components/BibleTab';
 import SharingTab from './components/SharingTab';
 import MyTab from './components/MyTab';
-import { getCurrentUser, initAllPastDays } from './utils/storage';
-import { PLAN_START } from './data/readingPlan';
+import { getCurrentUser, setCurrentUser, resetData } from './utils/storage';
+import { registerServiceWorker, subscribePush } from './utils/push';
 
 const TABS = [
   { id: 0, label: '성경읽기', icon: '📖' },
@@ -17,13 +17,24 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
-    initAllPastDays(PLAN_START);
+    resetData();
+    registerServiceWorker();
     const saved = getCurrentUser();
-    if (saved) setUser(saved);
+    if (saved) {
+      setUser(saved);
+      subscribePush(saved);
+    }
   }, []);
 
+  const handleLogin = (name) => {
+    setCurrentUser(name);
+    setUser(name);
+    setActiveTab(0);
+    subscribePush(name);
+  };
+
   if (!user) {
-    return <Auth onLogin={(name) => { setUser(name); setActiveTab(0); }} />;
+    return <Auth onLogin={handleLogin} />;
   }
 
   return (

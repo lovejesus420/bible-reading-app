@@ -1,8 +1,19 @@
-import { dbSet, dbGet } from './db';
+import { dbSet } from './db';
 
 const USERS_KEY = 'bible_users';
 const RECORDS_KEY = 'bible_records';
 const CURRENT_USER_KEY = 'bible_current_user';
+
+// ── One-time reset: clear old records and re-start from May 22 ──
+const RESET_FLAG = 'bible_reset_may22';
+
+export function resetData() {
+  if (localStorage.getItem(RESET_FLAG)) return;
+  localStorage.setItem(RECORDS_KEY, '{}');
+  localStorage.removeItem('bible_backfill_done');
+  dbSet('records', {});
+  localStorage.setItem(RESET_FLAG, '1');
+}
 
 export function getUsers() {
   return JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
@@ -56,6 +67,14 @@ export function setReading(username, dateStr, value) {
   all[username][dateStr] = value;
   localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
   dbSet(`records/${username}/${dateStr}`, value);
+  if (value === true) dbSet(`lastRead/${username}`, Date.now());
+}
+
+export function clearReading(username, dateStr) {
+  const all = getAllRecords();
+  if (all[username]) delete all[username][dateStr];
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  dbSet(`records/${username}/${dateStr}`, null);
 }
 
 export function getMonthlyCount(username, year, month) {
@@ -115,31 +134,6 @@ export function getUserColor(username) {
     hash = username.charCodeAt(i) + ((hash << 5) - hash);
   }
   return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
-}
-
-// ── Init: one-time backfill of all past plan days as read for all current users ──
-const INIT_FLAG = 'bible_backfill_done';
-
-export function initAllPastDays(planStart) {
-  if (localStorage.getItem(INIT_FLAG)) return;
-  const users = getUsers();
-  const usernames = Object.keys(users);
-  if (!usernames.length) return;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const start = new Date(planStart); start.setHours(0, 0, 0, 0);
-  if (today < start) return;
-  const all = JSON.parse(localStorage.getItem(RECORDS_KEY) || '{}');
-  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
-    const dateStr = formatDate(new Date(d));
-    usernames.forEach(u => {
-      if (!all[u]) all[u] = {};
-      all[u][dateStr] = true;
-    });
-  }
-  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
-  localStorage.setItem(INIT_FLAG, '1');
-  toInit.forEach(u => dbSet(`users/${u}`, true));
-  toInit.forEach(u => dbSet(`records/${u}`, all[u]));
 }
 
 // ── Comments ──
