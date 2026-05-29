@@ -4,8 +4,8 @@ const USERS_KEY = 'bible_users';
 const RECORDS_KEY = 'bible_records';
 const CURRENT_USER_KEY = 'bible_current_user';
 
-// ── One-time reset: clear old records and re-start from May 22 ──
-const RESET_FLAG = 'bible_reset_may22';
+// ── One-time reset: clear old records and re-start from May 30 ──
+const RESET_FLAG = 'bible_reset_may30';
 
 export function resetData() {
   if (localStorage.getItem(RESET_FLAG)) return;

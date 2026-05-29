@@ -37,7 +37,7 @@ export default function BibleTab({ user }) {
         <div className="info-card centered" style={{ margin: '40px 16px' }}>
           <div className="big-icon">📖</div>
           <h3>성경통독이 곧 시작됩니다!</h3>
-          <p>시작일: 2026년 5월 22일</p>
+          <p>시작일: 2026년 5월 30일</p>
         </div>
       </div>
     );
