@@ -208,7 +208,8 @@ export function getDayNumber(date = new Date()) {
   start.setHours(0, 0, 0, 0);
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  return Math.floor((d - start) / (1000 * 60 * 60 * 24)) + 1;
+  const diff = d.getTime() - start.getTime();
+  return Math.round(diff / (1000 * 60 * 60 * 24)) + 1;
 }
 
 export function getPassageForDate(date = new Date()) {

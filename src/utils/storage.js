@@ -4,14 +4,22 @@ const USERS_KEY = 'bible_users';
 const RECORDS_KEY = 'bible_records';
 const CURRENT_USER_KEY = 'bible_current_user';
 
-// ── One-time reset: clear old records and re-start from May 30 ──
-const RESET_FLAG = 'bible_reset_may30';
+// ── Total reset: Wipe all progress and start fresh from May 30 ──
+const RESET_FLAG = 'bible_hard_reset_final_v1';
 
 export function resetData() {
   if (localStorage.getItem(RESET_FLAG)) return;
+  
+  // Wipe everything related to progress
   localStorage.setItem(RECORDS_KEY, '{}');
+  localStorage.setItem(COMMENTS_KEY, '{}');
   localStorage.removeItem('bible_backfill_done');
+  
+  // Wipe Firebase records and comments as well
   dbSet('records', {});
+  dbSet('comments', {});
+  dbSet('lastRead', {});
+  
   localStorage.setItem(RESET_FLAG, '1');
 }
 
