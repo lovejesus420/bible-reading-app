@@ -34,6 +34,19 @@ export async function resetData() {
   window.location.reload();
 }
 
+export function clearAllData() {
+  localStorage.removeItem(USERS_KEY);
+  localStorage.removeItem(RECORDS_KEY);
+  localStorage.removeItem(CURRENT_USER_KEY);
+  localStorage.removeItem(COMMENTS_KEY);
+  localStorage.setItem(RESET_FLAG, '1');
+
+  dbSet('users', null);
+  dbSet('records', null);
+  dbSet('comments', null);
+  dbSet('lastRead', null);
+}
+
 export function getUsers() {
   return JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
 }
