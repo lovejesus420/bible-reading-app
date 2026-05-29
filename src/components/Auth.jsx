@@ -36,6 +36,7 @@ export default function Auth({ onLogin }) {
         <h1 className="auth-title">김앤장 성경통독</h1>
         <p className="auth-subtitle">200일 완독 챌린지</p>
         <p className="auth-period">2026.05.30 ~ 2026.12.15</p>
+        <div style={{ fontSize: '10px', opacity: 0.5, marginTop: '8px' }}>v1.0.30-reset</div>
       </div>
 
       <div className="auth-card">

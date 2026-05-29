@@ -3,24 +3,24 @@ import { dbSet } from './db';
 const USERS_KEY = 'bible_users';
 const RECORDS_KEY = 'bible_records';
 const CURRENT_USER_KEY = 'bible_current_user';
+const COMMENTS_KEY = 'bible_comments';
 
 // ── Total reset: Wipe all progress and start fresh from May 30 ──
-const RESET_FLAG = 'bible_hard_reset_final_v1';
+const RESET_FLAG = 'bible_hard_reset_final_v3';
 
 export function resetData() {
   if (localStorage.getItem(RESET_FLAG)) return;
   
-  // Wipe everything related to progress
-  localStorage.setItem(RECORDS_KEY, '{}');
-  localStorage.setItem(COMMENTS_KEY, '{}');
-  localStorage.removeItem('bible_backfill_done');
+  // Wipe everything!
+  localStorage.clear();
   
   // Wipe Firebase records and comments as well
-  dbSet('records', {});
-  dbSet('comments', {});
-  dbSet('lastRead', {});
+  dbSet('records', null);
+  dbSet('comments', null);
+  dbSet('lastRead', null);
   
   localStorage.setItem(RESET_FLAG, '1');
+  console.log('Bible App: Hard reset executed for May 30th');
 }
 
 export function getUsers() {
@@ -145,8 +145,6 @@ export function getUserColor(username) {
 }
 
 // ── Comments ──
-const COMMENTS_KEY = 'bible_comments';
-
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
