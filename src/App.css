@@ -628,6 +628,23 @@ body {
 }
 .logout-btn:hover { background: var(--danger-light); }
 
+.reset-btn {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 12px 16px 0;
+  padding: 14px;
+  background: #fff1f2;
+  border: 1.5px solid #fecaca;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #b91c1c;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.reset-btn:hover { background: #fee2e2; border-color: #fca5a5; }
+
 /* ── Passage Card: read toggle button ── */
 .read-toggle-btn {
   display: block;

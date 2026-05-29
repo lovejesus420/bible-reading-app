@@ -7,6 +7,7 @@ import {
   formatMonthKorean,
   getUserColor,
   logout,
+  clearAllData,
 } from '../utils/storage';
 import { getDayNumber, PLAN_START } from '../data/readingPlan';
 
@@ -47,6 +48,14 @@ export default function MyTab({ user, onLogout }) {
 
   const dayNum = getDayNumber(today);
   const progressPct = Math.min((dayNum / 200) * 100, 100);
+
+  const handleReset = () => {
+    const confirmed = window.confirm('모든 기록을 초기화하고 처음부터 시작하시겠습니까?');
+    if (!confirmed) return;
+    clearAllData();
+    logout();
+    window.location.reload();
+  };
 
   const handleLogout = () => {
     logout();
@@ -110,6 +119,9 @@ export default function MyTab({ user, onLogout }) {
         </div>
       </div>
 
+      <button className="reset-btn" onClick={handleReset}>
+        전체 기록 초기화
+      </button>
       <button className="logout-btn" onClick={handleLogout}>
         로그아웃
       </button>

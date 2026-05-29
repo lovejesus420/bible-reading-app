@@ -5,22 +5,33 @@ const RECORDS_KEY = 'bible_records';
 const CURRENT_USER_KEY = 'bible_current_user';
 const COMMENTS_KEY = 'bible_comments';
 
-// ── Total reset: Wipe all progress and start fresh from May 30 ──
-const RESET_FLAG = 'bible_hard_reset_final_v3';
+// ── NUCLEAR RESET: Wipe ALL data including users ──
+const RESET_FLAG = 'bible_nuclear_reset_v1';
 
-export function resetData() {
+export async function resetData() {
   if (localStorage.getItem(RESET_FLAG)) return;
-  
-  // Wipe everything!
+
+  console.log('Bible App: NUCLEAR RESET STARTING...');
+
+  // Wipe Firebase completely (major nodes)
+  try {
+    await Promise.all([
+      dbSet('records', null),
+      dbSet('comments', null),
+      dbSet('lastRead', null),
+      dbSet('users', null),
+      dbSet('subscriptions', null),
+    ]);
+  } catch (e) {
+    console.error('Firebase wipe failed:', e);
+  }
+
+  // Wipe local
   localStorage.clear();
-  
-  // Wipe Firebase records and comments as well
-  dbSet('records', null);
-  dbSet('comments', null);
-  dbSet('lastRead', null);
-  
   localStorage.setItem(RESET_FLAG, '1');
-  console.log('Bible App: Hard reset executed for May 30th');
+
+  console.log('Bible App: NUCLEAR RESET COMPLETE. Reloading...');
+  window.location.reload();
 }
 
 export function getUsers() {
@@ -144,7 +155,6 @@ export function getUserColor(username) {
   return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
 }
 
-// ── Comments ──
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
