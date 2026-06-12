@@ -39,7 +39,16 @@ export default function SharingTab({ user }) {
   const [fbUsers, setFbUsers] = useState(null);
   const [fbRecords, setFbRecords] = useState(null);
 
-  // Listen for users and records
+  // Helper functions
+  const makeDateStr = (d) =>
+    `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+  const isToday = (d) =>
+    d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+
+  const isSelected = (d) => makeDateStr(d) === selectedDate;
+
+  // Listeners
   useEffect(() => {
     const unsubUsers = dbListen('users', (u) => {
       if (u) setFbUsers(u);
@@ -53,7 +62,6 @@ export default function SharingTab({ user }) {
     };
   }, []);
 
-  // Listen for comments on selected date
   useEffect(() => {
     const unsubComments = dbListen(`comments/${selectedDate}`, (fbComments) => {
       setComments(fbComments || []);
@@ -65,7 +73,7 @@ export default function SharingTab({ user }) {
     return () => unsubComments();
   }, [selectedDate]);
 
-  // Memoized derived data
+  // Derived data
   const allUsers = useMemo(() => {
     return fbUsers ? Object.keys(fbUsers) : Object.keys(getUsers());
   }, [fbUsers]);
@@ -74,7 +82,16 @@ export default function SharingTab({ user }) {
     return fbRecords || getAllRecords();
   }, [fbRecords]);
 
-  // Pre-calculate statuses for all days in the visible month to avoid repeated logic in render
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const cells = useMemo(() => {
+    const c = [];
+    for (let i = 0; i < firstDow; i++) c.push(null);
+    for (let d = 1; d <= daysInMonth; d++) c.push(d);
+    return c;
+  }, [firstDow, daysInMonth]);
+
   const statusesByDay = useMemo(() => {
     const map = {};
     cells.forEach(day => {
@@ -101,6 +118,7 @@ export default function SharingTab({ user }) {
     }).sort((a, b) => b.count - a.count);
   }, [allUsers, allRecords, viewYear, viewMonth]);
 
+  // Handlers
   const goPrev = () => {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
     else setViewMonth(m => m - 1);
@@ -109,11 +127,6 @@ export default function SharingTab({ user }) {
     if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
     else setViewMonth(m => m + 1);
   };
-
-  const isToday = (d) =>
-    d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
-
-  const isSelected = (d) => makeDateStr(d) === selectedDate;
 
   const handleSelectDate = (d) => {
     setSelectedDate(makeDateStr(d));
@@ -159,7 +172,6 @@ export default function SharingTab({ user }) {
         <p className="page-subtitle">함께 읽는 우리들의 기록</p>
       </div>
 
-      {/* Calendar */}
       <div className="calendar-card">
         <div className="month-nav">
           <button className="nav-arrow" onClick={goPrev}>‹</button>
@@ -209,7 +221,6 @@ export default function SharingTab({ user }) {
         </div>
       </div>
 
-      {/* Monthly stats */}
       <div className="stats-card">
         <h3 className="stats-title">{viewMonth + 1}월 읽기 현황</h3>
         {monthlyCounts.length === 0 ? (
@@ -242,7 +253,6 @@ export default function SharingTab({ user }) {
         )}
       </div>
 
-      {/* Comments */}
       <div className="cmnt-card">
         <h3 className="cmnt-title">{selectedDateLabel} 댓글</h3>
 
