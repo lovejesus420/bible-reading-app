@@ -5,6 +5,7 @@ import {
   getUserColor,
   formatDate,
   getComments,
+  formatMonthKorean,
   addComment,
   addReply,
   editReply,
@@ -73,11 +74,26 @@ export default function SharingTab({ user }) {
     return fbRecords || getAllRecords();
   }, [fbRecords]);
 
+  // Pre-calculate statuses for all days in the visible month to avoid repeated logic in render
+  const statusesByDay = useMemo(() => {
+    const map = {};
+    cells.forEach(day => {
+      if (!day) return;
+      const dateStr = makeDateStr(day);
+      const statuses = allUsers.map(u => ({
+        name: u,
+        read: !!(allRecords[u] && allRecords[u][dateStr] === true),
+      })).sort((a, b) => (b.read ? 1 : 0) - (a.read ? 1 : 0));
+      map[day] = statuses;
+    });
+    return map;
+  }, [cells, allUsers, allRecords, viewYear, viewMonth]);
+
   const monthlyCounts = useMemo(() => {
     return allUsers.map(u => {
       const records = allRecords[u] || {};
       const count = Object.entries(records).filter(([dateStr, value]) => {
-        if (!value) return false;
+        if (!value || typeof dateStr !== 'string') return false;
         const d = new Date(dateStr);
         return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
       }).length;
@@ -94,32 +110,10 @@ export default function SharingTab({ user }) {
     else setViewMonth(m => m + 1);
   };
 
-  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-  const cells = useMemo(() => {
-    const c = [];
-    for (let i = 0; i < firstDow; i++) c.push(null);
-    for (let d = 1; d <= daysInMonth; d++) c.push(d);
-    return c;
-  }, [firstDow, daysInMonth]);
-
   const isToday = (d) =>
     d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
 
-  const makeDateStr = (d) =>
-    `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
   const isSelected = (d) => makeDateStr(d) === selectedDate;
-
-  const getStatusesForDay = (d) => {
-    const dateStr = makeDateStr(d);
-    const statuses = allUsers.map(u => ({
-      name: u,
-      read: !!(allRecords[u] && allRecords[u][dateStr] === true),
-    }));
-    return statuses.sort((a, b) => (b.read ? 1 : 0) - (a.read ? 1 : 0));
-  };
 
   const handleSelectDate = (d) => {
     setSelectedDate(makeDateStr(d));
@@ -181,7 +175,7 @@ export default function SharingTab({ user }) {
           ))}
           {cells.map((day, i) => {
             if (!day) return <div key={`empty-${i}`} className="cal-cell empty" />;
-            const statuses = getStatusesForDay(day);
+            const statuses = statusesByDay[day] || [];
             const visible = statuses.slice(0, 4);
             const overflow = statuses.length - visible.length;
 
@@ -202,7 +196,7 @@ export default function SharingTab({ user }) {
                       style={s.read ? { backgroundColor: getUserColor(s.name) } : undefined}
                       title={s.name + (s.read ? '' : ' (미읽음)')}
                     >
-                      {s.name[0]}
+                      {s.name ? s.name[0] : '?'}
                     </span>
                   ))}
                   {overflow > 0 && (
