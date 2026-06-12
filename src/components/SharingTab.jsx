@@ -64,7 +64,19 @@ export default function SharingTab({ user }) {
 
   useEffect(() => {
     const unsubComments = dbListen(`comments/${selectedDate}`, (fbComments) => {
-      setComments(fbComments || []);
+      // Firebase RealtimeDB may return arrays as objects with numeric keys.
+      if (!fbComments) return setComments([]);
+      if (Array.isArray(fbComments)) return setComments(fbComments);
+      // Convert keyed object to array and preserve insertion order when possible
+      const arr = Object.keys(fbComments)
+        .sort((a, b) => {
+          const ai = Number(a);
+          const bi = Number(b);
+          if (!Number.isNaN(ai) && !Number.isNaN(bi)) return ai - bi;
+          return 0;
+        })
+        .map(k => fbComments[k]);
+      setComments(arr);
     });
     setReplyingTo(null);
     setEditingReply(null);
