@@ -6,7 +6,7 @@ const CURRENT_USER_KEY = 'bible_current_user';
 const COMMENTS_KEY = 'bible_comments';
 
 // ── NUCLEAR RESET: Wipe ALL data including users ──
-const RESET_FLAG = 'bible_nuclear_reset_v1';
+const RESET_FLAG = 'bible_nuclear_reset_v2';
 
 export async function resetData() {
   if (localStorage.getItem(RESET_FLAG)) return;
