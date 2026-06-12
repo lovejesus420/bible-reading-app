@@ -64,18 +64,57 @@ export default function SharingTab({ user }) {
 
   useEffect(() => {
     const unsubComments = dbListen(`comments/${selectedDate}`, (fbComments) => {
-      // Firebase RealtimeDB may return arrays as objects with numeric keys.
       if (!fbComments) return setComments([]);
-      if (Array.isArray(fbComments)) return setComments(fbComments);
-      // Convert keyed object to array and preserve insertion order when possible
-      const arr = Object.keys(fbComments)
-        .sort((a, b) => {
+
+      const normalizeReactions = (reactions) => {
+        if (!reactions) return {};
+        if (Array.isArray(reactions)) return reactions;
+        const out = {};
+        Object.keys(reactions).forEach(emoji => {
+          const val = reactions[emoji];
+          if (!val) out[emoji] = [];
+          else if (Array.isArray(val)) out[emoji] = val;
+          else if (typeof val === 'object') {
+            out[emoji] = Object.keys(val)
+              .sort((a, b) => Number(a) - Number(b))
+              .map(k => val[k]);
+          } else out[emoji] = [];
+        });
+        return out;
+      };
+
+      const normalizeReply = (r) => {
+        if (!r) return null;
+        const reply = { ...r };
+        reply.reactions = normalizeReactions(reply.reactions || {});
+        return reply;
+      };
+
+      const convertComments = (raw) => {
+        const keys = Object.keys(raw || {});
+        const sorted = keys.slice().sort((a, b) => {
           const ai = Number(a);
           const bi = Number(b);
           if (!Number.isNaN(ai) && !Number.isNaN(bi)) return ai - bi;
           return 0;
-        })
-        .map(k => fbComments[k]);
+        });
+        return sorted.map(k => {
+          const c = { ...(raw[k] || {}) };
+          // Normalize replies into array
+          if (!c.replies) c.replies = [];
+          else if (!Array.isArray(c.replies)) {
+            c.replies = Object.keys(c.replies || {})
+              .sort((a, b) => Number(a) - Number(b))
+              .map(rk => normalizeReply(c.replies[rk]))
+              .filter(Boolean);
+          } else {
+            c.replies = c.replies.map(normalizeReply).filter(Boolean);
+          }
+          return c;
+        });
+      };
+
+      const arr = Array.isArray(fbComments) ? fbComments.map(c => ({ ...(c || {}) })) : convertComments(fbComments);
       setComments(arr);
     });
     setReplyingTo(null);
