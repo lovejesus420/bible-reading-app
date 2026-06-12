@@ -326,9 +326,9 @@ export default function SharingTab({ user }) {
               <div key={comment.id} className="cmnt-item">
                 <div className="cmnt-header">
                   <span className="cmnt-avatar" style={{ backgroundColor: getUserColor(comment.author) }}>
-                    {comment.author[0]}
+                    {comment.author ? comment.author[0] : '?'}
                   </span>
-                  <span className="cmnt-author">{comment.author}</span>
+                  <span className="cmnt-author">{comment.author || '익명'}</span>
                   <span className="cmnt-time">{formatTime(comment.timestamp)}</span>
                 </div>
                 <p className="cmnt-text">{comment.text}</p>
@@ -364,9 +364,9 @@ export default function SharingTab({ user }) {
                       <div key={reply.id} className="reply-item">
                         <div className="cmnt-header">
                           <span className="cmnt-avatar small" style={{ backgroundColor: getUserColor(reply.author) }}>
-                            {reply.author[0]}
+                            {reply.author ? reply.author[0] : '?'}
                           </span>
-                          <span className="cmnt-author">{reply.author}</span>
+                          <span className="cmnt-author">{reply.author || '익명'}</span>
                           <span className="cmnt-time">
                             {formatTime(reply.timestamp)}{reply.edited ? ' (수정됨)' : ''}
                           </span>
