@@ -341,7 +341,7 @@ export default function SharingTab({ user }) {
                     setEditingReply(null);
                   }}
                 >
-                  답글 달기
+                  답글 달기 ({(comment.replies || []).length})
                 </button>
 
                 {replyingTo === comment.id && (
@@ -358,12 +358,12 @@ export default function SharingTab({ user }) {
                   </div>
                 )}
 
-                {comment.replies.length > 0 && (
+                {(comment.replies || []).length > 0 && (
                   <div className="reply-list">
-                    {comment.replies.map(reply => (
+                    {(comment.replies || []).map(reply => (
                       <div key={reply.id} className="reply-item">
                         <div className="cmnt-header">
-                          <span className="cmnt-avatar small" style={{ backgroundColor: getUserColor(reply.author) }}>
+                          <span className="cmnt-avatar small" style={{ backgroundColor: getUserColor(reply.author || '?') }}>
                             {reply.author ? reply.author[0] : '?'}
                           </span>
                           <span className="cmnt-author">{reply.author || '익명'}</span>
@@ -397,8 +397,10 @@ export default function SharingTab({ user }) {
 
                         <div className="reaction-row">
                           {REACTIONS.map(emoji => {
-                            const count = reply.reactions?.[emoji]?.length || 0;
-                            const active = reply.reactions?.[emoji]?.includes(user);
+                            const reactions = reply.reactions || {};
+                            const users = reactions[emoji] || [];
+                            const count = users.length;
+                            const active = users.includes(user);
                             return (
                               <button
                                 key={emoji}

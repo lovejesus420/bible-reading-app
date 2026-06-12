@@ -185,6 +185,7 @@ export function addReply(dateStr, commentId, author, text) {
   const comments = getComments(dateStr);
   const c = comments.find(c => c.id === commentId);
   if (!c) return comments;
+  if (!c.replies) c.replies = [];
   c.replies.push({
     id: uid(), author, text: text.trim(), timestamp: Date.now(),
     edited: false, reactions: { '❤️': [], '👍': [], '😢': [] },
@@ -195,7 +196,7 @@ export function addReply(dateStr, commentId, author, text) {
 export function editReply(dateStr, commentId, replyId, newText) {
   const comments = getComments(dateStr);
   const c = comments.find(c => c.id === commentId);
-  if (!c) return comments;
+  if (!c || !c.replies) return comments;
   const r = c.replies.find(r => r.id === replyId);
   if (r) { r.text = newText.trim(); r.edited = true; }
   return saveComments(dateStr, comments);
@@ -204,9 +205,10 @@ export function editReply(dateStr, commentId, replyId, newText) {
 export function toggleReaction(dateStr, commentId, replyId, emoji, username) {
   const comments = getComments(dateStr);
   const c = comments.find(c => c.id === commentId);
-  if (!c) return comments;
+  if (!c || !c.replies) return comments;
   const r = c.replies.find(r => r.id === replyId);
   if (!r) return comments;
+  if (!r.reactions) r.reactions = { '❤️': [], '👍': [], '😢': [] };
   if (!r.reactions[emoji]) r.reactions[emoji] = [];
   const idx = r.reactions[emoji].indexOf(username);
   if (idx >= 0) r.reactions[emoji].splice(idx, 1);
