@@ -3,7 +3,7 @@ import Auth from './components/Auth';
 import BibleTab from './components/BibleTab';
 import SharingTab from './components/SharingTab';
 import MyTab from './components/MyTab';
-import { getCurrentUser, setCurrentUser, resetData } from './utils/storage';
+import { getCurrentUser, setCurrentUser, resetData, syncUsers } from './utils/storage';
 import { registerServiceWorker, subscribePush } from './utils/push';
 
 const TABS = [
@@ -15,15 +15,26 @@ const TABS = [
 export default function App() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    resetData();
-    registerServiceWorker();
-    const saved = getCurrentUser();
-    if (saved) {
-      setUser(saved);
-      subscribePush(saved);
-    }
+    const init = async () => {
+      try {
+        await resetData();
+        await syncUsers();
+      } catch (e) {
+        console.error('Init failed:', e);
+      } finally {
+        registerServiceWorker();
+        const saved = getCurrentUser();
+        if (saved) {
+          setUser(saved);
+          subscribePush(saved);
+        }
+        setLoading(false);
+      }
+    };
+    init();
   }, []);
 
   const handleLogin = (name) => {
@@ -32,6 +43,15 @@ export default function App() {
     setActiveTab(0);
     subscribePush(name);
   };
+
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner"></div>
+        <p>데이터 동기화 중...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Auth onLogin={handleLogin} />;

@@ -1,9 +1,9 @@
 import { dbSet } from './db';
 
 const USERS_KEY = 'bible_users';
-const RECORDS_KEY = 'bible_records';
 const CURRENT_USER_KEY = 'bible_current_user';
-const COMMENTS_KEY = 'bible_comments';
+const RECORDS_PREFIX = 'bible_records_';
+const COMMENTS_PREFIX = 'bible_comments_';
 
 // ── NUCLEAR RESET: Wipe ALL data including users ──
 const RESET_FLAG = 'bible_nuclear_reset_v2';
@@ -19,7 +19,6 @@ export async function resetData() {
       dbSet('records', null),
       dbSet('comments', null),
       dbSet('lastRead', null),
-      dbSet('users', null),
       dbSet('subscriptions', null),
     ]);
   } catch (e) {
@@ -35,16 +34,12 @@ export async function resetData() {
 }
 
 export function clearAllData() {
-  localStorage.removeItem(USERS_KEY);
-  localStorage.removeItem(RECORDS_KEY);
-  localStorage.removeItem(CURRENT_USER_KEY);
-  localStorage.removeItem(COMMENTS_KEY);
   localStorage.setItem(RESET_FLAG, '1');
-
   dbSet('users', null);
   dbSet('records', null);
   dbSet('comments', null);
   dbSet('lastRead', null);
+  localStorage.clear();
 }
 
 export function getUsers() {
@@ -59,7 +54,15 @@ export function registerUser(name, password) {
   const users = getUsers();
   users[name] = { password };
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  dbSet(`users/${name}`, true);
+  dbSet(`users/${name}`, { password });
+}
+
+export async function syncUsers() {
+  const { dbGet } = await import('./db');
+  const fbUsers = await dbGet('users');
+  if (fbUsers) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(fbUsers));
+  }
 }
 
 export function validateLogin(name, password) {
@@ -80,32 +83,35 @@ export function logout() {
 }
 
 export function getAllRecords() {
-  return JSON.parse(localStorage.getItem(RECORDS_KEY) || '{}');
+  const all = {};
+  const users = Object.keys(getUsers());
+  users.forEach(u => {
+    all[u] = getRecords(u);
+  });
+  return all;
 }
 
 export function getRecords(username) {
-  return getAllRecords()[username] || {};
+  return JSON.parse(localStorage.getItem(RECORDS_PREFIX + username) || '{}');
 }
 
 export function getReading(username, dateStr) {
   const records = getRecords(username);
-  if (dateStr in records) return records[dateStr];
-  return null;
+  return records[dateStr] || null;
 }
 
 export function setReading(username, dateStr, value) {
-  const all = getAllRecords();
-  if (!all[username]) all[username] = {};
-  all[username][dateStr] = value;
-  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  const records = getRecords(username);
+  records[dateStr] = value;
+  localStorage.setItem(RECORDS_PREFIX + username, JSON.stringify(records));
   dbSet(`records/${username}/${dateStr}`, value);
   if (value === true) dbSet(`lastRead/${username}`, Date.now());
 }
 
 export function clearReading(username, dateStr) {
-  const all = getAllRecords();
-  if (all[username]) delete all[username][dateStr];
-  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  const records = getRecords(username);
+  delete records[dateStr];
+  localStorage.setItem(RECORDS_PREFIX + username, JSON.stringify(records));
   dbSet(`records/${username}/${dateStr}`, null);
 }
 
@@ -121,20 +127,6 @@ export function getMonthlyCount(username, year, month) {
 export function getTotalCount(username) {
   const records = getRecords(username);
   return Object.values(records).filter(Boolean).length;
-}
-
-export function getAllUsersMonthlyCount(year, month) {
-  const all = getAllRecords();
-  const result = {};
-  Object.keys(all).forEach(username => {
-    result[username] = getMonthlyCount(username, year, month);
-  });
-  return result;
-}
-
-export function getUsersWhoReadOnDate(dateStr) {
-  const all = getAllRecords();
-  return Object.keys(all).filter(u => all[u][dateStr] === true);
 }
 
 export function formatDate(date) {
@@ -173,52 +165,50 @@ function uid() {
 }
 
 export function getComments(dateStr) {
-  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
-  return all[dateStr] || [];
+  return JSON.parse(localStorage.getItem(COMMENTS_PREFIX + dateStr) || '[]');
 }
 
-function saveComments(all, dateStr) {
-  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
-  dbSet(`comments/${dateStr}`, all[dateStr] || []);
-  return [...(all[dateStr] || [])];
+function saveComments(dateStr, comments) {
+  localStorage.setItem(COMMENTS_PREFIX + dateStr, JSON.stringify(comments));
+  dbSet(`comments/${dateStr}`, comments);
+  return comments;
 }
 
 export function addComment(dateStr, author, text) {
-  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
-  if (!all[dateStr]) all[dateStr] = [];
-  all[dateStr].push({ id: uid(), author, text: text.trim(), timestamp: Date.now(), replies: [] });
-  return saveComments(all, dateStr);
+  const comments = getComments(dateStr);
+  comments.push({ id: uid(), author, text: text.trim(), timestamp: Date.now(), replies: [] });
+  return saveComments(dateStr, comments);
 }
 
 export function addReply(dateStr, commentId, author, text) {
-  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
-  const c = (all[dateStr] || []).find(c => c.id === commentId);
-  if (!c) return getComments(dateStr);
+  const comments = getComments(dateStr);
+  const c = comments.find(c => c.id === commentId);
+  if (!c) return comments;
   c.replies.push({
     id: uid(), author, text: text.trim(), timestamp: Date.now(),
     edited: false, reactions: { '❤️': [], '👍': [], '😢': [] },
   });
-  return saveComments(all, dateStr);
+  return saveComments(dateStr, comments);
 }
 
 export function editReply(dateStr, commentId, replyId, newText) {
-  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
-  const c = (all[dateStr] || []).find(c => c.id === commentId);
-  if (!c) return getComments(dateStr);
+  const comments = getComments(dateStr);
+  const c = comments.find(c => c.id === commentId);
+  if (!c) return comments;
   const r = c.replies.find(r => r.id === replyId);
   if (r) { r.text = newText.trim(); r.edited = true; }
-  return saveComments(all, dateStr);
+  return saveComments(dateStr, comments);
 }
 
 export function toggleReaction(dateStr, commentId, replyId, emoji, username) {
-  const all = JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}');
-  const c = (all[dateStr] || []).find(c => c.id === commentId);
-  if (!c) return getComments(dateStr);
+  const comments = getComments(dateStr);
+  const c = comments.find(c => c.id === commentId);
+  if (!c) return comments;
   const r = c.replies.find(r => r.id === replyId);
-  if (!r) return getComments(dateStr);
+  if (!r) return comments;
   if (!r.reactions[emoji]) r.reactions[emoji] = [];
   const idx = r.reactions[emoji].indexOf(username);
   if (idx >= 0) r.reactions[emoji].splice(idx, 1);
   else r.reactions[emoji].push(username);
-  return saveComments(all, dateStr);
+  return saveComments(dateStr, comments);
 }

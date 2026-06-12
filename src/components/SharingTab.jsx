@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   getUsers,
   getAllRecords,
-  getMonthlyCount,
-  formatMonthKorean,
   getUserColor,
   formatDate,
   getComments,
@@ -12,7 +10,7 @@ import {
   editReply,
   toggleReaction,
 } from '../utils/storage';
-import { dbGet } from '../utils/db';
+import { dbListen } from '../utils/db';
 
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const REACTIONS = ['❤️', '👍', '😢'];
@@ -29,7 +27,7 @@ export default function SharingTab({ user }) {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(todayStr);
-  const [comments, setComments] = useState(() => getComments(todayStr));
+  const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -40,27 +38,52 @@ export default function SharingTab({ user }) {
   const [fbUsers, setFbUsers] = useState(null);
   const [fbRecords, setFbRecords] = useState(null);
 
+  // Listen for users and records
   useEffect(() => {
-    Promise.all([dbGet('users'), dbGet('records')]).then(([u, r]) => {
+    const unsubUsers = dbListen('users', (u) => {
       if (u) setFbUsers(u);
+    });
+    const unsubRecords = dbListen('records', (r) => {
       if (r) setFbRecords(r);
     });
+    return () => {
+      unsubUsers();
+      unsubRecords();
+    };
   }, []);
 
+  // Listen for comments on selected date
   useEffect(() => {
-    // Try Firebase first, fall back to localStorage
-    dbGet(`comments/${selectedDate}`).then(fbComments => {
-      setComments(fbComments && fbComments.length ? fbComments : getComments(selectedDate));
+    const unsubComments = dbListen(`comments/${selectedDate}`, (fbComments) => {
+      setComments(fbComments || []);
     });
     setReplyingTo(null);
     setEditingReply(null);
     setReplyText('');
     setEditText('');
+    return () => unsubComments();
   }, [selectedDate]);
 
-  // Use Firebase data if loaded, otherwise fall back to local
-  const allUsers = fbUsers ? Object.keys(fbUsers) : Object.keys(getUsers());
-  const allRecords = fbRecords || getAllRecords();
+  // Memoized derived data
+  const allUsers = useMemo(() => {
+    return fbUsers ? Object.keys(fbUsers) : Object.keys(getUsers());
+  }, [fbUsers]);
+
+  const allRecords = useMemo(() => {
+    return fbRecords || getAllRecords();
+  }, [fbRecords]);
+
+  const monthlyCounts = useMemo(() => {
+    return allUsers.map(u => {
+      const records = allRecords[u] || {};
+      const count = Object.entries(records).filter(([dateStr, value]) => {
+        if (!value) return false;
+        const d = new Date(dateStr);
+        return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
+      }).length;
+      return { name: u, count };
+    }).sort((a, b) => b.count - a.count);
+  }, [allUsers, allRecords, viewYear, viewMonth]);
 
   const goPrev = () => {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
@@ -74,9 +97,12 @@ export default function SharingTab({ user }) {
   const firstDow = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
-  const cells = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  const cells = useMemo(() => {
+    const c = [];
+    for (let i = 0; i < firstDow; i++) c.push(null);
+    for (let d = 1; d <= daysInMonth; d++) c.push(d);
+    return c;
+  }, [firstDow, daysInMonth]);
 
   const isToday = (d) =>
     d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
@@ -95,38 +121,32 @@ export default function SharingTab({ user }) {
     return statuses.sort((a, b) => (b.read ? 1 : 0) - (a.read ? 1 : 0));
   };
 
-  // Monthly stats for ALL registered users
-  const monthlyCounts = allUsers.map(u => ({
-    name: u,
-    count: getMonthlyCount(u, viewYear, viewMonth),
-  })).sort((a, b) => b.count - a.count);
-
   const handleSelectDate = (d) => {
     setSelectedDate(makeDateStr(d));
   };
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
-    setComments(addComment(selectedDate, user, newComment));
+    addComment(selectedDate, user, newComment);
     setNewComment('');
   };
 
   const handleAddReply = (commentId) => {
     if (!replyText.trim()) return;
-    setComments(addReply(selectedDate, commentId, user, replyText));
+    addReply(selectedDate, commentId, user, replyText);
     setReplyText('');
     setReplyingTo(null);
   };
 
   const handleSaveEdit = (commentId, replyId) => {
     if (!editText.trim()) return;
-    setComments(editReply(selectedDate, commentId, replyId, editText));
+    editReply(selectedDate, commentId, replyId, editText);
     setEditingReply(null);
     setEditText('');
   };
 
   const handleReaction = (commentId, replyId, emoji) => {
-    setComments(toggleReaction(selectedDate, commentId, replyId, emoji, user));
+    toggleReaction(selectedDate, commentId, replyId, emoji, user);
   };
 
   const startEdit = (commentId, replyId, currentText) => {

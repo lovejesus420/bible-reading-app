@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getDatabase, ref, get, set } from 'firebase/database';
+import { getDatabase, ref, get, set, onValue } from 'firebase/database';
 
 const config = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
@@ -37,6 +37,14 @@ export async function dbSet(path, value) {
   } catch {
     // silent fail — localStorage is still the source of truth
   }
+}
+
+export function dbListen(path, callback) {
+  const db = getDb();
+  if (!db) return () => {};
+  return onValue(ref(db, path), (snap) => {
+    callback(snap.exists() ? snap.val() : null);
+  });
 }
 
 export function isFirebaseEnabled() {
