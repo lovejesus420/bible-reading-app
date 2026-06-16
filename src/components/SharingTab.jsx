@@ -36,8 +36,8 @@ export default function SharingTab({ user }) {
   const [editText, setEditText] = useState('');
 
   // Firebase shared data
-  const [fbUsers, setFbUsers] = useState(null);
-  const [fbRecords, setFbRecords] = useState(null);
+  const [fbUsers, setFbUsers] = useState({});
+  const [fbRecords, setFbRecords] = useState({});
 
   // Helper functions
   const makeDateStr = (d) =>
@@ -51,10 +51,10 @@ export default function SharingTab({ user }) {
   // Listeners
   useEffect(() => {
     const unsubUsers = dbListen('users', (u) => {
-      if (u) setFbUsers(u);
+      setFbUsers(u || {});
     });
     const unsubRecords = dbListen('records', (r) => {
-      if (r) setFbRecords(r);
+      setFbRecords(r || {});
     });
     return () => {
       unsubUsers();
@@ -127,10 +127,11 @@ export default function SharingTab({ user }) {
   // Derived data
   const allUsers = useMemo(() => {
     const local = Object.keys(getUsers());
-    if (!fbUsers) return local;
-    const combined = new Set([...local, ...Object.keys(fbUsers)]);
+    const serverUsers = fbUsers ? Object.keys(fbUsers) : [];
+    const recordUsers = fbRecords ? Object.keys(fbRecords) : [];
+    const combined = new Set([...local, ...serverUsers, ...recordUsers]);
     return Array.from(combined);
-  }, [fbUsers]);
+  }, [fbUsers, fbRecords]);
 
   const allRecords = useMemo(() => {
     const local = getAllRecords();
