@@ -1,4 +1,4 @@
-import { dbSet } from './db';
+import { dbSet, dbUpdate } from './db';
 
 const USERS_KEY = 'bible_users';
 const CURRENT_USER_KEY = 'bible_current_user';
@@ -60,14 +60,13 @@ export async function registerUser(name, password) {
 export async function pushLocalData(username) {
   if (!username) return;
   const records = getRecords(username);
-  // Batch upload might be better but let's keep it simple for now
-  // Firestore merge:true handles this well
-  await dbSet(`records/${username}`, records);
+  if (Object.keys(records).length > 0) {
+    await dbUpdate(`records/${username}`, records);
+  }
   
-  // Also ensure user exists in DB
   const users = getUsers();
   if (users[username]) {
-    await dbSet(`users/${username}`, users[username]);
+    await dbUpdate(`users/${username}`, users[username]);
   }
 }
 
@@ -76,7 +75,6 @@ export async function syncUsers() {
   const fbUsers = await dbGet('users');
   if (fbUsers) {
     localStorage.setItem(USERS_KEY, JSON.stringify(fbUsers));
-    // After syncing users, backfill the first 4 days for everyone
     await backfillInitialDays(Object.keys(fbUsers));
   }
 }
@@ -85,18 +83,18 @@ export async function backfillInitialDays(usernames) {
   const days = ['2026-06-13', '2026-06-14', '2026-06-15', '2026-06-16'];
   for (const name of usernames) {
     const records = getRecords(name);
+    const updates = {};
     let changed = false;
     for (const day of days) {
       if (records[day] !== true) {
         records[day] = true;
+        updates[day] = true;
         changed = true;
-        // Also update individual day in DB if needed, 
-        // but batching via records/name is safer here
       }
     }
     if (changed) {
       localStorage.setItem(RECORDS_PREFIX + name, JSON.stringify(records));
-      await dbSet(`records/${name}`, records);
+      await dbUpdate(`records/${name}`, updates);
     }
   }
 }
