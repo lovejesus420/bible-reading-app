@@ -126,11 +126,27 @@ export default function SharingTab({ user }) {
 
   // Derived data
   const allUsers = useMemo(() => {
-    return fbUsers ? Object.keys(fbUsers) : Object.keys(getUsers());
+    const local = Object.keys(getUsers());
+    if (!fbUsers) return local;
+    const combined = new Set([...local, ...Object.keys(fbUsers)]);
+    return Array.from(combined);
   }, [fbUsers]);
 
   const allRecords = useMemo(() => {
-    return fbRecords || getAllRecords();
+    const local = getAllRecords();
+    if (!fbRecords) return local;
+
+    // Merge: Server records take precedence, but include local records for users missing on server
+    const merged = { ...fbRecords };
+    Object.keys(local).forEach(u => {
+      if (!merged[u]) {
+        merged[u] = local[u];
+      } else {
+        // Merge date records for the same user
+        merged[u] = { ...local[u], ...merged[u] };
+      }
+    });
+    return merged;
   }, [fbRecords]);
 
   const firstDow = new Date(viewYear, viewMonth, 1).getDay();

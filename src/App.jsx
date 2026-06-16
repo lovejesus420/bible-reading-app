@@ -3,7 +3,7 @@ import Auth from './components/Auth';
 import BibleTab from './components/BibleTab';
 import SharingTab from './components/SharingTab';
 import MyTab from './components/MyTab';
-import { getCurrentUser, setCurrentUser, resetData, syncUsers } from './utils/storage';
+import { getCurrentUser, setCurrentUser, resetData, syncUsers, pushLocalData } from './utils/storage';
 import { registerServiceWorker, subscribePush } from './utils/push';
 
 const TABS = [
@@ -22,15 +22,16 @@ export default function App() {
       try {
         await resetData();
         await syncUsers();
-      } catch (e) {
-        console.error('Init failed:', e);
-      } finally {
-        registerServiceWorker();
         const saved = getCurrentUser();
         if (saved) {
           setUser(saved);
           subscribePush(saved);
+          pushLocalData(saved);
         }
+      } catch (e) {
+        console.error('Init failed:', e);
+      } finally {
+        registerServiceWorker();
         setLoading(false);
       }
     };
@@ -42,6 +43,7 @@ export default function App() {
     setUser(name);
     setActiveTab(0);
     subscribePush(name);
+    pushLocalData(name);
   };
 
   if (loading) {
