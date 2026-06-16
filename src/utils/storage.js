@@ -1,4 +1,5 @@
 import { dbSet, dbUpdate } from './db';
+import { PLAN_START } from '../data/readingPlan';
 
 const USERS_KEY = 'bible_users';
 const CURRENT_USER_KEY = 'bible_current_user';
@@ -72,15 +73,29 @@ export async function pushLocalData(username) {
 
 export async function syncUsers() {
   const { dbGet } = await import('./db');
+  const localUsers = getUsers();
   const fbUsers = await dbGet('users');
-  if (fbUsers) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(fbUsers));
-    await backfillInitialDays(Object.keys(fbUsers));
+  const mergedUsers = fbUsers ? { ...localUsers, ...fbUsers } : localUsers;
+
+  localStorage.setItem(USERS_KEY, JSON.stringify(mergedUsers));
+
+  if (Object.keys(localUsers).length > 0) {
+    await dbUpdate('users', localUsers);
+  }
+
+  if (Object.keys(mergedUsers).length > 0) {
+    await backfillInitialDays(Object.keys(mergedUsers));
   }
 }
 
 export async function backfillInitialDays(usernames) {
-  const days = ['2026-06-13', '2026-06-14', '2026-06-15', '2026-06-16'];
+  const start = new Date(PLAN_START.getTime());
+  const today = new Date();
+  const days = [];
+  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    days.push(formatDate(new Date(d)));
+  }
+
   for (const name of usernames) {
     const records = getRecords(name);
     const updates = {};

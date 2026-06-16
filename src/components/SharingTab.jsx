@@ -173,6 +173,13 @@ export default function SharingTab({ user }) {
     return map;
   }, [cells, allUsers, allRecords, viewYear, viewMonth]);
 
+  const selectedDateStatuses = useMemo(() => {
+    return allUsers.map(name => ({
+      name,
+      read: !!(allRecords[name] && allRecords[name][selectedDate] === true),
+    }));
+  }, [allUsers, allRecords, selectedDate]);
+
   const monthlyCounts = useMemo(() => {
     return allUsers.map(u => {
       const records = allRecords[u] || {};
@@ -314,6 +321,28 @@ export default function SharingTab({ user }) {
                   />
                 </div>
                 <div className="stats-count">{count}일</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="read-status-card">
+        <h3 className="read-status-title">{selectedDateLabel} 읽음 현황</h3>
+        {selectedDateStatuses.length === 0 ? (
+          <p className="empty-msg">등록된 사용자가 없습니다</p>
+        ) : (
+          <div className="read-status-list">
+            {selectedDateStatuses.map(({ name, read }) => (
+              <div key={name} className={`read-status-row ${read ? 'read-yes' : 'read-no'}`}>
+                <div className="read-status-avatar" style={{ backgroundColor: getUserColor(name) }}>
+                  {name[0]}
+                </div>
+                <div className="read-status-name">
+                  {name}
+                  {name === user && <span className="me-badge">나</span>}
+                </div>
+                <div className="read-status-label">{read ? '읽음' : '미읽음'}</div>
               </div>
             ))}
           </div>

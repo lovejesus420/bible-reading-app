@@ -20,7 +20,6 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        await resetData();
         await syncUsers();
         const saved = getCurrentUser();
         if (saved) {
