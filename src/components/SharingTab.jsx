@@ -11,7 +11,7 @@ import {
   editReply,
   toggleReaction,
 } from '../utils/storage';
-import { dbListen } from '../utils/db';
+import { dbGet, dbListen, isFirebaseEnabled } from '../utils/db';
 
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const REACTIONS = ['❤️', '👍', '😢'];
@@ -127,10 +127,11 @@ export default function SharingTab({ user }) {
   // Derived data
   const allUsers = useMemo(() => {
     const local = Object.keys(getUsers());
+    const localRecordUsers = Object.keys(getAllRecords());
     const serverUsers = fbUsers ? Object.keys(fbUsers) : [];
     const recordUsers = fbRecords ? Object.keys(fbRecords) : [];
-    const combined = new Set([...local, ...serverUsers, ...recordUsers]);
-    return Array.from(combined);
+    const combined = new Set([...local, ...localRecordUsers, ...serverUsers, ...recordUsers]);
+    return Array.from(combined).sort();
   }, [fbUsers, fbRecords]);
 
   const allRecords = useMemo(() => {

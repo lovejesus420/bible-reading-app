@@ -133,7 +133,15 @@ export function logout() {
 
 export function getAllRecords() {
   const all = {};
-  const users = Object.keys(getUsers());
+  const users = new Set(Object.keys(getUsers()));
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(RECORDS_PREFIX)) continue;
+    const username = key.slice(RECORDS_PREFIX.length);
+    if (username) users.add(username);
+  }
+
   users.forEach(u => {
     all[u] = getRecords(u);
   });
