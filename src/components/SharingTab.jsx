@@ -50,15 +50,45 @@ export default function SharingTab({ user }) {
 
   // Listeners
   useEffect(() => {
-    const unsubUsers = dbListen('users', (u) => {
-      setFbUsers(u || {});
-    });
-    const unsubRecords = dbListen('records', (r) => {
-      setFbRecords(r || {});
-    });
+    let unsubUsers = () => {};
+    let unsubRecords = () => {};
+
+    if (isFirebaseEnabled()) {
+      unsubUsers = dbListen('users', (u) => setFbUsers(u || {}));
+      unsubRecords = dbListen('records', (r) => setFbRecords(r || {}));
+    } else {
+      // Fallback: fetch via server API once and poll periodically
+      (async () => {
+        try {
+          const [uRes, rRes] = await Promise.all([
+            fetch('/api/fbdata?node=users').then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('/api/fbdata?node=records').then(r => r.ok ? r.json() : null).catch(() => null),
+          ]);
+          if (uRes) setFbUsers(uRes);
+          if (rRes) setFbRecords(rRes);
+        } catch (e) {
+          console.error('fbdata fetch failed', e);
+        }
+      })();
+
+      const poll = setInterval(async () => {
+        try {
+          const [uRes, rRes] = await Promise.all([
+            fetch('/api/fbdata?node=users').then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('/api/fbdata?node=records').then(r => r.ok ? r.json() : null).catch(() => null),
+          ]);
+          if (uRes) setFbUsers(uRes);
+          if (rRes) setFbRecords(rRes);
+        } catch (e) {}
+      }, 30000);
+
+      unsubUsers = () => clearInterval(poll);
+      unsubRecords = () => {};
+    }
+
     return () => {
-      unsubUsers();
-      unsubRecords();
+      try { unsubUsers(); } catch (e) {}
+      try { unsubRecords(); } catch (e) {}
     };
   }, []);
 
